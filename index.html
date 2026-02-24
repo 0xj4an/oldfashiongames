@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Old Fashion Games</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Press Start 2P', monospace;
+            overflow: hidden;
+            padding: 10px;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        canvas {
+            display: block;
+            border-radius: 4px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            height: auto;
+            touch-action: none;
+        }
+
+        #nameOverlay {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 10;
+        }
+
+        #nameInput {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 12px;
+            padding: 8px 12px;
+            width: 200px;
+            border: 2px solid #535353;
+            border-radius: 4px;
+            text-align: center;
+            outline: none;
+        }
+
+        #saveBtn, #skipBtn {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 10px;
+            padding: 8px 16px;
+            margin: 8px 4px 0;
+            cursor: pointer;
+            border: 2px solid #535353;
+            border-radius: 4px;
+            background: #fff;
+        }
+
+        #saveBtn:hover, #skipBtn:hover {
+            background: #535353;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="game" width="400" height="600"></canvas>
+        <div id="nameOverlay">
+            <input id="nameInput" type="text" maxlength="15" placeholder="Your name">
+            <br>
+            <button id="saveBtn">SAVE</button>
+            <button id="skipBtn">SKIP</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        const nameOverlay = document.getElementById('nameOverlay');
+        const nameInput = document.getElementById('nameInput');
+        const saveBtn = document.getElementById('saveBtn');
+        const skipBtn = document.getElementById('skipBtn');
+
+        const COLORS = {
+            background: '#f7f7f7',
+            ground: '#535353',
+            dino: '#535353',
+            pipe: '#73bf2e',
+            pipeCap: '#558c22',
+            text: '#535353',
+            overlay: 'rgba(0, 0, 0, 0.5)',
+            cloud: '#d3d3d3',
+            cactus: '#535353'
+        };
+
+        let currentGame = 'menu';
+        let gameState = 'menu';
+        let score = 0;
+        let shakeTimer = 0;
+        let flashTimer = 0;
+        let selectedDifficulty = 'intermediate';
+        let leaderboardData = {};
+        let leaderboardTab = 'dino';
+        let leaderboardDifficulty = 'beginner';
+        let scoreSaved = false;
+
+        const GROUND_HEIGHT = 80;
+        const DINO_WIDTH = 40;
+        const DINO_HEIGHT = 44;
+
+        // Difficulty presets
+        const DIFFICULTY = {
+            dino: {
+                beginner:     { BASE_SPEED: 3,   GRAVITY: 0.3,  JUMP_VELOCITY: -9,  SPEED_INC: 0.3 },
+                intermediate: { BASE_SPEED: 4,   GRAVITY: 0.35, JUMP_VELOCITY: -10, SPEED_INC: 0.5 },
+                advanced:     { BASE_SPEED: 6,   GRAVITY: 0.5,  JUMP_VELOCITY: -12, SPEED_INC: 0.7 }
+            },
+            flappy: {
+                beginner:     { PIPE_SPEED: 1.5, PIPE_GAP: 200, PIPE_SPACING: 350, GRAVITY: 0.3,  JUMP_VELOCITY: -7, MAX_FALL_SPEED: 6,  SPEED_INC: 0.2, GAP_DEC: 3 },
+                intermediate: { PIPE_SPEED: 2,   PIPE_GAP: 180, PIPE_SPACING: 300, GRAVITY: 0.35, JUMP_VELOCITY: -7, MAX_FALL_SPEED: 6,  SPEED_INC: 0.3, GAP_DEC: 5 },
+                advanced:     { PIPE_SPEED: 3,   PIPE_GAP: 140, PIPE_SPACING: 220, GRAVITY: 0.5,  JUMP_VELOCITY: -9, MAX_FALL_SPEED: 10, SPEED_INC: 0.4, GAP_DEC: 5 }
+            }
+        };
+
+        const flappyGame = {
+            PIPE_WIDTH: 55,
+            PIPE_GAP: 180,
+            PIPE_SPACING: 300,
+            PIPE_SPEED: 2,
+            BASE_PIPE_SPEED: 2,
+            BASE_PIPE_GAP: 180,
+            GRAVITY: 0.35,
+            JUMP_VELOCITY: -7,
+            MAX_FALL_SPEED: 6,
+            SPEED_INC: 0.3,
+            GAP_DEC: 5,
+            bestScore: parseInt(localStorage.getItem('dinoFlappyBest')) || 0,
+            dino: { x: 60, y: 300, width: DINO_WIDTH, height: DINO_HEIGHT, velocity: 0, rotation: 0 },
+            pipes: [],
+            pipesPassed: 0
+        };
+
+        const dinoGame = {
+            GRAVITY: 0.35,
+            JUMP_VELOCITY: -10,
+            BASE_SPEED: 4,
+            SPEED: 4,
+            SPEED_INC: 0.5,
+            bestScore: parseInt(localStorage.getItem('dinoRunnerBest')) || 0,
+            dino: { x: 50, y: 476, width: DINO_WIDTH, height: DINO_HEIGHT, velocity: 0, groundY: 476 },
+            obstacles: [],
+            clouds: [],
+            ground: { x: 0 }
+        };
+
+        function applyDifficulty(gameType, difficulty) {
+            selectedDifficulty = difficulty;
+            const preset = DIFFICULTY[gameType][difficulty];
+
+            if (gameType === 'dino') {
+                dinoGame.BASE_SPEED = preset.BASE_SPEED;
+                dinoGame.SPEED = preset.BASE_SPEED;
+                dinoGame.GRAVITY = preset.GRAVITY;
+                dinoGame.JUMP_VELOCITY = preset.JUMP_VELOCITY;
+                dinoGame.SPEED_INC = preset.SPEED_INC;
+            } else {
+                flappyGame.BASE_PIPE_SPEED = preset.PIPE_SPEED;
+                flappyGame.PIPE_SPEED = preset.PIPE_SPEED;
+                flappyGame.BASE_PIPE_GAP = preset.PIPE_GAP;
+                flappyGame.PIPE_GAP = preset.PIPE_GAP;
+                flappyGame.PIPE_SPACING = preset.PIPE_SPACING;
+                flappyGame.GRAVITY = preset.GRAVITY;
+                flappyGame.JUMP_VELOCITY = preset.JUMP_VELOCITY;
+                flappyGame.MAX_FALL_SPEED = preset.MAX_FALL_SPEED;
+                flappyGame.SPEED_INC = preset.SPEED_INC;
+                flappyGame.GAP_DEC = preset.GAP_DEC;
+            }
+        }
+
+        function drawDinoSprite(x, y, rotation = 0) {
+            ctx.save();
+            ctx.translate(x + DINO_WIDTH / 2, y + DINO_HEIGHT / 2);
+            ctx.rotate(rotation);
+
+            ctx.fillStyle = COLORS.dino;
+            ctx.fillRect(-20, -22, 40, 44);
+
+            ctx.fillStyle = COLORS.background;
+            ctx.fillRect(8, -16, 6, 6);
+            ctx.fillRect(-20, -22, 12, 4);
+
+            ctx.restore();
+        }
+
+        function drawMenu() {
+            ctx.fillStyle = COLORS.background;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = COLORS.dino;
+            ctx.font = '20px "Press Start 2P", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('OLD FASHION', canvas.width / 2, 120);
+            ctx.fillText('GAMES', canvas.width / 2, 150);
+
+            ctx.fillStyle = COLORS.ground;
+            ctx.fillRect(0, canvas.height - GROUND_HEIGHT, canvas.width, 2);
+
+            const dinoX = canvas.width / 2 - 20;
+            const dinoY = canvas.height / 2 - 80;
+            drawDinoSprite(dinoX, dinoY);
+
+            ctx.font = '12px "Press Start 2P", monospace';
+            ctx.fillStyle = COLORS.text;
+            ctx.fillText('1. DINO RUN', canvas.width / 2, 360);
+            ctx.fillText('2. FLAPPY', canvas.width / 2, 400);
+            ctx.fillText('3. LEADERBOARD', canvas.width / 2, 440);
+
+            ctx.font = '10px "Press Start 2P", monospace';
+            ctx.fillStyle = '#888';
+            ctx.fillText('Press 1, 2 or 3', canvas.width / 2, 520);
+        }
+
+        function drawDifficultySelect() {
+            ctx.fillStyle = COLORS.background;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = COLORS.dino;
+            ctx.font = '16px "Press Start 2P", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('SELECT', canvas.width / 2, 120);
+            ctx.fillText('DIFFICULTY', canvas.width / 2, 150);
+
+            const dinoX = canvas.width / 2 - 20;
+            drawDinoSprite(dinoX, 220);
+
+            ctx.font = '12px "Press Start 2P", monospace';
+            ctx.fillStyle = COLORS.text;
+            ctx.fillText('1. BEGINNER', canvas.width / 2, 340);
+            ctx.fillText('2. INTERMEDIATE', canvas.width / 2, 380);
+            ctx.fillText('3. ADVANCED', canvas.width / 2, 420);
+
+            ctx.font = '9px "Press Start 2P", monospace';
+            ctx.fillStyle = '#888';
+            ctx.fillText('Press M for Menu', canvas.width / 2, 520);
+        }
+
+        function drawLeaderboard() {
+            ctx.fillStyle = COLORS.background;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = COLORS.dino;
+            ctx.font = '14px "Press Start 2P", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('LEADERBOARD', canvas.width / 2, 30);
+
+            // Difficulty tabs
+            const diffs = ['beginner', 'intermediate', 'advanced'];
+            const diffLabels = ['BEG', 'INT', 'ADV'];
+            const diffX = [67, 200, 333];
+            ctx.font = '9px "Press Start 2P", monospace';
+            diffs.forEach((d, i) => {
+                ctx.fillStyle = leaderboardDifficulty === d ? COLORS.dino : '#aaa';
+                ctx.fillText(diffLabels[i], diffX[i], 55);
+            });
+            // Underline active difficulty
+            ctx.fillStyle = COLORS.dino;
+            const activeIdx = diffs.indexOf(leaderboardDifficulty);
+            ctx.fillRect(diffX[activeIdx] - 25, 59, 50, 2);
+
+            // Game tabs
+            ctx.font = '10px "Press Start 2P", monospace';
+            ctx.fillStyle = leaderboardTab === 'dino' ? COLORS.dino : '#aaa';
+            ctx.fillText('DINO RUN', 100, 85);
+            ctx.fillStyle = leaderboardTab === 'flappy' ? COLORS.dino : '#aaa';
+            ctx.fillText('FLAPPY', 300, 85);
+
+            // Underline active game tab
+            ctx.fillStyle = COLORS.dino;
+            if (leaderboardTab === 'dino') {
+                ctx.fillRect(40, 90, 120, 2);
+            } else {
+                ctx.fillRect(240, 90, 120, 2);
+            }
+
+            // Headers
+            ctx.font = '8px "Press Start 2P", monospace';
+            ctx.fillStyle = '#888';
+            ctx.textAlign = 'left';
+            ctx.fillText('#', 20, 115);
+            ctx.fillText('NAME', 50, 115);
+            ctx.fillText('SCORE', 280, 115);
+
+            ctx.fillStyle = COLORS.ground;
+            ctx.fillRect(15, 120, 370, 1);
+
+            // Scores
+            const data = leaderboardData[leaderboardTab] || [];
+            ctx.font = '9px "Press Start 2P", monospace';
+
+            if (data.length === 0) {
+                ctx.fillStyle = '#aaa';
+                ctx.textAlign = 'center';
+                ctx.fillText('No scores yet', canvas.width / 2, 200);
+            } else {
+                data.forEach((entry, i) => {
+                    const y = 145 + i * 38;
+                    ctx.fillStyle = i < 3 ? '#d4a017' : COLORS.text;
+                    ctx.textAlign = 'left';
+                    ctx.fillText((i + 1) + '.', 20, y);
+                    ctx.fillText(entry.player_name, 50, y);
+                    ctx.textAlign = 'right';
+                    ctx.fillText(entry.score.toString(), 370, y);
+                });
+            }
+
+            ctx.font = '7px "Press Start 2P", monospace';
+            ctx.fillStyle = '#888';
+            ctx.textAlign = 'center';
+            ctx.fillText('TAB:game  D:difficulty  M:menu', canvas.width / 2, 570);
+        }
+
+        function draw() {
+            ctx.fillStyle = COLORS.background;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (currentGame === 'menu') {
+                drawMenu();
+            } else if (currentGame === 'difficulty') {
+                drawDifficultySelect();
+            } else if (currentGame === 'leaderboard') {
+                drawLeaderboard();
+            } else if (currentGame === 'dino') {
+                drawDinoGame();
+            } else if (currentGame === 'flappy') {
+                drawFlappyGame();
+            }
+        }
+
+        function drawDinoGame() {
+            const game = dinoGame;
+
+            ctx.fillStyle = COLORS.cloud;
+            game.clouds.forEach(cloud => {
+                ctx.fillRect(cloud.x, cloud.y, 40, 15);
+                ctx.fillRect(cloud.x + 10, cloud.y - 10, 20, 15);
+            });
+
+            ctx.fillStyle = COLORS.ground;
+            ctx.fillRect(0, canvas.height - GROUND_HEIGHT, canvas.width, 2);
+
+            for (let i = 0; i < canvas.width; i += 20) {
+                const x = (i - (game.ground.x % 20));
+                if (x > -5 && x < canvas.width + 5) {
+                    ctx.fillRect(x, canvas.height - GROUND_HEIGHT + 10, 10, 2);
+                }
+            }
+
+            game.obstacles.forEach(obs => {
+                ctx.fillStyle = COLORS.cactus;
+                if (obs.type === 'small') {
+                    ctx.fillRect(obs.x, obs.y, 20, 40);
+                    ctx.fillRect(obs.x + 5, obs.y + 10, 10, 30);
+                } else {
+                    ctx.fillRect(obs.x, obs.y, 25, 50);
+                    ctx.fillRect(obs.x - 5, obs.y + 15, 10, 25);
+                    ctx.fillRect(obs.x + 15, obs.y + 10, 10, 20);
+                }
+            });
+
+            drawDinoSprite(game.dino.x, game.dino.y);
+
+            if (gameState === 'playing' || gameState === 'ready') {
+                ctx.fillStyle = COLORS.text;
+                ctx.font = '32px "Press Start 2P", monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(score.toString().padStart(3, '0'), canvas.width / 2, 50);
+
+                // Show current speed indicator
+                ctx.font = '8px "Press Start 2P", monospace';
+                ctx.fillStyle = '#aaa';
+                ctx.fillText('SPD: ' + game.SPEED.toFixed(1), canvas.width / 2, 70);
+            }
+
+            drawDinoOverlay();
+            drawDinoReady();
+        }
+
+        function drawDinoOverlay() {
+            if (gameState !== 'gameover') return;
+
+            ctx.fillStyle = COLORS.overlay;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#fff';
+            ctx.textAlign = 'center';
+
+            ctx.font = '24px "Press Start 2P", monospace';
+            ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 60);
+
+            ctx.font = '16px "Press Start 2P", monospace';
+            ctx.fillText('Score: ' + score, canvas.width / 2, canvas.height / 2 - 20);
+            ctx.fillText('Best: ' + dinoGame.bestScore, canvas.width / 2, canvas.height / 2 + 10);
+
+            if (scoreSaved) {
+                ctx.font = '10px "Press Start 2P", monospace';
+                ctx.fillStyle = '#7f7';
+                ctx.fillText('Score Saved!', canvas.width / 2, canvas.height / 2 + 45);
+                ctx.fillStyle = '#fff';
+                ctx.font = '11px "Press Start 2P", monospace';
+                ctx.fillText('Tap to Restart', canvas.width / 2, canvas.height / 2 + 85);
+                ctx.font = '9px "Press Start 2P", monospace';
+                ctx.fillText('D: Change Level', canvas.width / 2, canvas.height / 2 + 110);
+                ctx.fillText('M: Menu', canvas.width / 2, canvas.height / 2 + 135);
+            }
+        }
+
+        function drawDinoReady() {
+            if (gameState !== 'ready') return;
+
+            ctx.fillStyle = COLORS.text;
+            ctx.textAlign = 'center';
+            ctx.font = '14px "Press Start 2P", monospace';
+            ctx.fillText('Tap to Start', canvas.width / 2, canvas.height / 2);
+
+            ctx.font = '9px "Press Start 2P", monospace';
+            ctx.fillStyle = '#888';
+            const diffLabel = selectedDifficulty.toUpperCase();
+            ctx.fillText(diffLabel, canvas.width / 2, canvas.height / 2 + 30);
+        }
+
+        function drawFlappyGame() {
+            const game = flappyGame;
+
+            game.pipes.forEach(pipe => {
+                ctx.fillStyle = COLORS.pipe;
+
+                ctx.fillRect(pipe.x, 0, game.PIPE_WIDTH, pipe.gapY);
+
+                ctx.fillStyle = COLORS.pipeCap;
+                ctx.fillRect(pipe.x - 4, pipe.gapY - 24, game.PIPE_WIDTH + 8, 24);
+
+                const bottomPipeY = pipe.gapY + pipe.gap;
+                const bottomHeight = canvas.height - GROUND_HEIGHT - bottomPipeY;
+
+                ctx.fillStyle = COLORS.pipe;
+                ctx.fillRect(pipe.x, bottomPipeY, game.PIPE_WIDTH, bottomHeight);
+
+                ctx.fillStyle = COLORS.pipeCap;
+                ctx.fillRect(pipe.x - 4, bottomPipeY, game.PIPE_WIDTH + 8, 24);
+            });
+
+            ctx.fillStyle = COLORS.ground;
+            ctx.fillRect(0, canvas.height - GROUND_HEIGHT, canvas.width, 2);
+
+            drawDinoSprite(game.dino.x, game.dino.y, game.dino.rotation);
+
+            if (gameState === 'playing' || gameState === 'ready') {
+                ctx.fillStyle = COLORS.text;
+                ctx.font = '32px "Press Start 2P", monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(score.toString().padStart(3, '0'), canvas.width / 2, 50);
+
+                ctx.font = '8px "Press Start 2P", monospace';
+                ctx.fillStyle = '#aaa';
+                ctx.fillText('SPD: ' + game.PIPE_SPEED.toFixed(1), canvas.width / 2, 70);
+            }
+
+            drawFlappyOverlay();
+            drawFlappyReady();
+        }
+
+        function drawFlappyOverlay() {
+            if (gameState !== 'gameover') return;
+
+            ctx.fillStyle = COLORS.overlay;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#fff';
+            ctx.textAlign = 'center';
+
+            ctx.font = '24px "Press Start 2P", monospace';
+            ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 60);
+
+            ctx.font = '16px "Press Start 2P", monospace';
+            ctx.fillText('Score: ' + score, canvas.width / 2, canvas.height / 2 - 20);
+            ctx.fillText('Best: ' + flappyGame.bestScore, canvas.width / 2, canvas.height / 2 + 10);
+
+            if (scoreSaved) {
+                ctx.font = '10px "Press Start 2P", monospace';
+                ctx.fillStyle = '#7f7';
+                ctx.fillText('Score Saved!', canvas.width / 2, canvas.height / 2 + 45);
+                ctx.fillStyle = '#fff';
+                ctx.font = '11px "Press Start 2P", monospace';
+                ctx.fillText('Tap to Restart', canvas.width / 2, canvas.height / 2 + 85);
+                ctx.font = '9px "Press Start 2P", monospace';
+                ctx.fillText('D: Change Level', canvas.width / 2, canvas.height / 2 + 110);
+                ctx.fillText('M: Menu', canvas.width / 2, canvas.height / 2 + 135);
+            }
+        }
+
+        function drawFlappyReady() {
+            if (gameState !== 'ready') return;
+
+            ctx.fillStyle = COLORS.text;
+            ctx.textAlign = 'center';
+            ctx.font = '14px "Press Start 2P", monospace';
+            ctx.fillText('Tap to Start', canvas.width / 2, canvas.height / 2);
+
+            ctx.font = '9px "Press Start 2P", monospace';
+            ctx.fillStyle = '#888';
+            const diffLabel = selectedDifficulty.toUpperCase();
+            ctx.fillText(diffLabel, canvas.width / 2, canvas.height / 2 + 30);
+        }
+
+        function spawnFlappyPipe() {
+            const game = flappyGame;
+            const minGap = 120;
+            const maxGap = canvas.height - GROUND_HEIGHT - 120;
+            const gapY = Math.random() * (maxGap - minGap - game.PIPE_GAP) + minGap;
+
+            game.pipes.push({
+                x: canvas.width,
+                gapY: gapY,
+                gap: game.PIPE_GAP,
+                passed: false
+            });
+        }
+
+        function updateFlappyGame() {
+            if (gameState !== 'playing') return;
+
+            const game = flappyGame;
+            const dino = game.dino;
+
+            dino.velocity += game.GRAVITY;
+            if (dino.velocity > game.MAX_FALL_SPEED) {
+                dino.velocity = game.MAX_FALL_SPEED;
+            }
+            dino.y += dino.velocity;
+
+            dino.rotation = Math.min(Math.PI / 4, dino.velocity * 0.1);
+            if (dino.velocity < 0) {
+                dino.rotation = -0.3;
+            }
+
+            if (dino.y < 0) {
+                dino.y = 0;
+                dino.velocity = 0;
+            }
+
+            if (dino.y + dino.height > canvas.height - GROUND_HEIGHT) {
+                doGameOver('flappy');
+                return;
+            }
+
+            if (game.pipes.length === 0 || game.pipes[game.pipes.length - 1].x < canvas.width - game.PIPE_SPACING) {
+                spawnFlappyPipe();
+            }
+
+            for (let i = game.pipes.length - 1; i >= 0; i--) {
+                const pipe = game.pipes[i];
+                pipe.x -= game.PIPE_SPEED;
+
+                if (!pipe.passed && pipe.x + game.PIPE_WIDTH < dino.x) {
+                    pipe.passed = true;
+                    score++;
+                    game.pipesPassed++;
+
+                    // Progressive difficulty every 10 pipes
+                    if (game.pipesPassed % 10 === 0) {
+                        game.PIPE_SPEED = game.BASE_PIPE_SPEED + (game.pipesPassed / 10) * game.SPEED_INC;
+                        game.PIPE_GAP = Math.max(100, game.BASE_PIPE_GAP - (game.pipesPassed / 10) * game.GAP_DEC);
+                    }
+                }
+
+                if (pipe.x + game.PIPE_WIDTH < 0) {
+                    game.pipes.splice(i, 1);
+                    continue;
+                }
+
+                const dinoLeft = dino.x + 8;
+                const dinoRight = dino.x + dino.width - 8;
+                const dinoTop = dino.y + 8;
+                const dinoBottom = dino.y + dino.height - 8;
+
+                const pipeLeft = pipe.x;
+                const pipeRight = pipe.x + game.PIPE_WIDTH;
+                const topPipeBottom = pipe.gapY;
+                const bottomPipeTop = pipe.gapY + pipe.gap;
+
+                if (dinoRight > pipeLeft && dinoLeft < pipeRight) {
+                    if (dinoTop < topPipeBottom || dinoBottom > bottomPipeTop) {
+                        doGameOver('flappy');
+                        return;
+                    }
+                }
+            }
+        }
+
+        function spawnDinoObstacle() {
+            const game = dinoGame;
+            const type = Math.random() > 0.5 ? 'small' : 'large';
+            const y = canvas.height - GROUND_HEIGHT - (type === 'small' ? 40 : 50);
+
+            game.obstacles.push({
+                x: canvas.width,
+                y: y,
+                width: type === 'small' ? 20 : 25,
+                height: type === 'small' ? 40 : 50,
+                type: type
+            });
+        }
+
+        function spawnDinoCloud() {
+            const game = dinoGame;
+            game.clouds.push({
+                x: canvas.width,
+                y: Math.random() * 200 + 50,
+                speed: 0.5 + Math.random() * 0.5
+            });
+        }
+
+        function updateDinoGame() {
+            if (gameState !== 'playing') return;
+
+            const game = dinoGame;
+            const dino = game.dino;
+
+            dino.velocity += game.GRAVITY;
+            dino.y += dino.velocity;
+
+            if (dino.y > dino.groundY) {
+                dino.y = dino.groundY;
+                dino.velocity = 0;
+            }
+
+            game.ground.x += game.SPEED;
+
+            if (Math.random() < 0.02) {
+                spawnDinoCloud();
+            }
+
+            for (let i = game.clouds.length - 1; i >= 0; i--) {
+                game.clouds[i].x -= game.clouds[i].speed;
+                if (game.clouds[i].x < -50) {
+                    game.clouds.splice(i, 1);
+                }
+            }
+
+            if (game.obstacles.length === 0 ||
+                game.obstacles[game.obstacles.length - 1].x < canvas.width - 300) {
+                if (Math.random() < 0.05) {
+                    spawnDinoObstacle();
+                }
+            }
+
+            for (let i = game.obstacles.length - 1; i >= 0; i--) {
+                const obs = game.obstacles[i];
+                obs.x -= game.SPEED;
+
+                if (obs.x + obs.width < 0) {
+                    game.obstacles.splice(i, 1);
+                    score++;
+
+                    // Progressive difficulty every 10 obstacles
+                    if (score % 10 === 0) {
+                        game.SPEED = game.BASE_SPEED + Math.floor(score / 10) * game.SPEED_INC;
+                    }
+                    continue;
+                }
+
+                const dinoBox = { x: dino.x + 5, y: dino.y + 5, width: dino.width - 10, height: dino.height - 10 };
+                if (dinoBox.x < obs.x + obs.width &&
+                    dinoBox.x + dinoBox.width > obs.x &&
+                    dinoBox.y < obs.y + obs.height &&
+                    dinoBox.y + dinoBox.height > obs.y) {
+                    doGameOver('dino');
+                }
+            }
+        }
+
+        function doGameOver(gameType) {
+            gameState = 'gameover';
+            shakeTimer = 10;
+            flashTimer = 10;
+            scoreSaved = false;
+
+            if (gameType === 'dino') {
+                if (score > dinoGame.bestScore) {
+                    dinoGame.bestScore = score;
+                    localStorage.setItem('dinoRunnerBest', dinoGame.bestScore.toString());
+                }
+            } else {
+                if (score > flappyGame.bestScore) {
+                    flappyGame.bestScore = score;
+                    localStorage.setItem('dinoFlappyBest', flappyGame.bestScore.toString());
+                }
+            }
+
+            // Show name input if score > 0
+            if (score > 0) {
+                nameOverlay.style.display = 'block';
+                nameInput.value = '';
+                nameInput.focus();
+            } else {
+                scoreSaved = true;
+            }
+        }
+
+        async function saveScore() {
+            const name = nameInput.value.trim();
+            if (!name) return;
+
+            const gameType = currentGame;
+            try {
+                await fetch('/api/scores', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ playerName: name, gameType, score, difficulty: selectedDifficulty })
+                });
+            } catch (e) {
+                console.error('Failed to save score:', e);
+            }
+
+            nameOverlay.style.display = 'none';
+            scoreSaved = true;
+        }
+
+        function skipSave() {
+            nameOverlay.style.display = 'none';
+            scoreSaved = true;
+        }
+
+        saveBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            saveScore();
+        });
+
+        skipBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            skipSave();
+        });
+
+        nameInput.addEventListener('keydown', (e) => {
+            e.stopPropagation();
+            if (e.key === 'Enter') saveScore();
+        });
+
+        async function fetchLeaderboard() {
+            const d = leaderboardDifficulty;
+            try {
+                const [dinoRes, flappyRes] = await Promise.all([
+                    fetch('/api/scores/dino/' + d),
+                    fetch('/api/scores/flappy/' + d)
+                ]);
+                leaderboardData.dino = await dinoRes.json();
+                leaderboardData.flappy = await flappyRes.json();
+            } catch (e) {
+                console.error('Failed to fetch leaderboard:', e);
+                leaderboardData = { dino: [], flappy: [] };
+            }
+        }
+
+        function showLeaderboard() {
+            currentGame = 'leaderboard';
+            gameState = 'leaderboard';
+            fetchLeaderboard();
+        }
+
+        let pendingGameType = null;
+
+        function showDifficultySelect(gameType) {
+            pendingGameType = gameType;
+            currentGame = 'difficulty';
+            gameState = 'difficulty';
+        }
+
+        function startGame(gameType) {
+            currentGame = gameType;
+            score = 0;
+            scoreSaved = false;
+            nameOverlay.style.display = 'none';
+
+            if (gameType === 'dino') {
+                gameState = 'ready';
+                dinoGame.SPEED = dinoGame.BASE_SPEED;
+                dinoGame.dino.y = dinoGame.dino.groundY;
+                dinoGame.dino.velocity = 0;
+                dinoGame.obstacles.length = 0;
+                dinoGame.clouds.length = 0;
+                dinoGame.ground.x = 0;
+            } else if (gameType === 'flappy') {
+                gameState = 'ready';
+                flappyGame.PIPE_SPEED = flappyGame.BASE_PIPE_SPEED;
+                flappyGame.PIPE_GAP = flappyGame.BASE_PIPE_GAP;
+                flappyGame.pipesPassed = 0;
+                flappyGame.dino.y = 300;
+                flappyGame.dino.velocity = 0;
+                flappyGame.dino.rotation = 0;
+                flappyGame.pipes.length = 0;
+                spawnFlappyPipe();
+            }
+        }
+
+        function goToMenu() {
+            currentGame = 'menu';
+            gameState = 'menu';
+            score = 0;
+            nameOverlay.style.display = 'none';
+        }
+
+        function update() {
+            if (currentGame === 'dino') {
+                updateDinoGame();
+            } else if (currentGame === 'flappy') {
+                updateFlappyGame();
+            }
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            // Don't handle game keys when typing name
+            if (document.activeElement === nameInput) return;
+
+            if (e.code === 'Space' || e.code === 'ArrowUp') {
+                e.preventDefault();
+
+                if (currentGame === 'flappy') {
+                    if (gameState === 'ready') {
+                        gameState = 'playing';
+                    } else if (gameState === 'playing') {
+                        flappyGame.dino.velocity = flappyGame.JUMP_VELOCITY;
+                    } else if (gameState === 'gameover' && scoreSaved) {
+                        startGame('flappy');
+                    }
+                } else if (currentGame === 'dino') {
+                    if (gameState === 'ready') {
+                        gameState = 'playing';
+                    } else if (gameState === 'playing') {
+                        if (dinoGame.dino.y >= dinoGame.dino.groundY - 1) {
+                            dinoGame.dino.velocity = dinoGame.JUMP_VELOCITY;
+                        }
+                    } else if (gameState === 'gameover' && scoreSaved) {
+                        startGame('dino');
+                    }
+                }
+            }
+
+            if (currentGame === 'leaderboard') {
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    leaderboardTab = leaderboardTab === 'dino' ? 'flappy' : 'dino';
+                }
+                if (e.key === 'd' || e.key === 'D') {
+                    const diffs = ['beginner', 'intermediate', 'advanced'];
+                    const idx = diffs.indexOf(leaderboardDifficulty);
+                    leaderboardDifficulty = diffs[(idx + 1) % 3];
+                    fetchLeaderboard();
+                }
+            }
+
+            if (currentGame === 'menu') {
+                if (e.key === '1') showDifficultySelect('dino');
+                else if (e.key === '2') showDifficultySelect('flappy');
+                else if (e.key === '3') showLeaderboard();
+            } else if (currentGame === 'difficulty') {
+                if (e.key === '1') {
+                    applyDifficulty(pendingGameType, 'beginner');
+                    startGame(pendingGameType);
+                } else if (e.key === '2') {
+                    applyDifficulty(pendingGameType, 'intermediate');
+                    startGame(pendingGameType);
+                } else if (e.key === '3') {
+                    applyDifficulty(pendingGameType, 'advanced');
+                    startGame(pendingGameType);
+                }
+            }
+
+            if ((e.key === 'd' || e.key === 'D') && gameState === 'gameover' && scoreSaved &&
+                (currentGame === 'dino' || currentGame === 'flappy')) {
+                showDifficultySelect(currentGame);
+            }
+
+            if (e.key === 'm' || e.key === 'M') {
+                goToMenu();
+            }
+        });
+
+        function handleInput(x, y) {
+            if (currentGame === 'leaderboard') {
+                if (y > 40 && y < 65) {
+                    if (x > 20 && x < 120) { leaderboardDifficulty = 'beginner'; fetchLeaderboard(); }
+                    else if (x > 150 && x < 250) { leaderboardDifficulty = 'intermediate'; fetchLeaderboard(); }
+                    else if (x > 280 && x < 380) { leaderboardDifficulty = 'advanced'; fetchLeaderboard(); }
+                }
+                if (y > 70 && y < 95) {
+                    if (x > 30 && x < 170) leaderboardTab = 'dino';
+                    else if (x > 230 && x < 370) leaderboardTab = 'flappy';
+                }
+                return;
+            }
+
+            if (currentGame === 'menu') {
+                if (y > 340 && y < 370) showDifficultySelect('dino');
+                else if (y > 380 && y < 410) showDifficultySelect('flappy');
+                else if (y > 420 && y < 450) showLeaderboard();
+            } else if (currentGame === 'difficulty') {
+                if (y > 320 && y < 350) {
+                    applyDifficulty(pendingGameType, 'beginner');
+                    startGame(pendingGameType);
+                } else if (y > 360 && y < 390) {
+                    applyDifficulty(pendingGameType, 'intermediate');
+                    startGame(pendingGameType);
+                } else if (y > 400 && y < 430) {
+                    applyDifficulty(pendingGameType, 'advanced');
+                    startGame(pendingGameType);
+                }
+            } else if (currentGame === 'flappy') {
+                if (gameState === 'ready') {
+                    gameState = 'playing';
+                } else if (gameState === 'playing') {
+                    flappyGame.dino.velocity = flappyGame.JUMP_VELOCITY;
+                } else if (gameState === 'gameover' && scoreSaved) {
+                    startGame('flappy');
+                }
+            } else if (currentGame === 'dino') {
+                if (gameState === 'ready') {
+                    gameState = 'playing';
+                } else if (gameState === 'playing') {
+                    if (dinoGame.dino.y >= dinoGame.dino.groundY - 1) {
+                        dinoGame.dino.velocity = dinoGame.JUMP_VELOCITY;
+                    }
+                } else if (gameState === 'gameover' && scoreSaved) {
+                    startGame('dino');
+                }
+            }
+        }
+
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+            handleInput(x, y);
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const touch = e.touches[0];
+            const x = (touch.clientX - rect.left) * scaleX;
+            const y = (touch.clientY - rect.top) * scaleY;
+            handleInput(x, y);
+        });
+
+        gameLoop();
+    </script>
+</body>
+</html>
