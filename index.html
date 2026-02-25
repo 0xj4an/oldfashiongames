@@ -108,6 +108,8 @@
             cactus: '#535353'
         };
 
+        const BACK_BTN = { x: 350, y: 8, w: 42, h: 42 };
+
         let currentGame = 'menu';
         let gameState = 'menu';
         let score = 0;
@@ -334,6 +336,24 @@
             ctx.fillText('TAB:game  D:difficulty  M:menu', canvas.width / 2, 570);
         }
 
+        function drawBackButton() {
+            if (currentGame === 'menu') return;
+            if (gameState === 'playing') return;
+
+            const b = BACK_BTN;
+            ctx.fillStyle = '#ddd';
+            ctx.fillRect(b.x, b.y, b.w, b.h);
+
+            ctx.strokeStyle = '#535353';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(b.x + 12, b.y + 12);
+            ctx.lineTo(b.x + b.w - 12, b.y + b.h - 12);
+            ctx.moveTo(b.x + b.w - 12, b.y + 12);
+            ctx.lineTo(b.x + 12, b.y + b.h - 12);
+            ctx.stroke();
+        }
+
         function draw() {
             ctx.fillStyle = COLORS.background;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -349,6 +369,8 @@
             } else if (currentGame === 'flappy') {
                 drawFlappyGame();
             }
+
+            drawBackButton();
         }
 
         function drawDinoGame() {
@@ -733,6 +755,9 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ playerName: name, gameType, score, difficulty: selectedDifficulty })
                 });
+                leaderboardDifficulty = selectedDifficulty;
+                leaderboardTab = gameType;
+                await fetchLeaderboard();
             } catch (e) {
                 console.error('Failed to save score:', e);
             }
@@ -907,6 +932,15 @@
         });
 
         function handleInput(x, y) {
+            // Back button (all screens except menu, not during gameplay)
+            if (currentGame !== 'menu' && gameState !== 'playing') {
+                const b = BACK_BTN;
+                if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
+                    goToMenu();
+                    return;
+                }
+            }
+
             if (currentGame === 'leaderboard') {
                 if (y > 40 && y < 65) {
                     if (x > 20 && x < 120) { leaderboardDifficulty = 'beginner'; fetchLeaderboard(); }
@@ -941,7 +975,13 @@
                 } else if (gameState === 'playing') {
                     flappyGame.dino.velocity = flappyGame.JUMP_VELOCITY;
                 } else if (gameState === 'gameover' && scoreSaved) {
-                    startGame('flappy');
+                    if (y > 397 && y < 423) {
+                        showDifficultySelect('flappy');
+                    } else if (y > 423 && y < 448) {
+                        goToMenu();
+                    } else {
+                        startGame('flappy');
+                    }
                 }
             } else if (currentGame === 'dino') {
                 if (gameState === 'ready') {
@@ -951,7 +991,13 @@
                         dinoGame.dino.velocity = dinoGame.JUMP_VELOCITY;
                     }
                 } else if (gameState === 'gameover' && scoreSaved) {
-                    startGame('dino');
+                    if (y > 397 && y < 423) {
+                        showDifficultySelect('dino');
+                    } else if (y > 423 && y < 448) {
+                        goToMenu();
+                    } else {
+                        startGame('dino');
+                    }
                 }
             }
         }
