@@ -13,6 +13,19 @@ const pool = new Pool({
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
+// Auto-create scores table if it doesn't exist
+pool.query(`
+  CREATE TABLE IF NOT EXISTS scores (
+    id SERIAL PRIMARY KEY,
+    player_name VARCHAR(20) NOT NULL,
+    game_type VARCHAR(10) NOT NULL,
+    score INTEGER NOT NULL,
+    difficulty VARCHAR(15) NOT NULL DEFAULT 'intermediate',
+    created_at TIMESTAMP DEFAULT NOW()
+  )
+`).then(() => console.log('Scores table ready'))
+  .catch(err => console.error('Failed to create scores table:', err));
+
 const VALID_DIFFICULTIES = ['beginner', 'intermediate', 'advanced'];
 
 // Get top 10 scores for a game type + difficulty
