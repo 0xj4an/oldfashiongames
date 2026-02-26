@@ -284,18 +284,14 @@
             ctx.fillStyle = COLORS.dino;
             ctx.font = '20px "Press Start 2P", monospace';
             ctx.textAlign = 'center';
-            ctx.fillText('OLD FASHION', canvas.width / 2, 120);
-            ctx.fillText('GAMES', canvas.width / 2, 150);
-
-            ctx.fillStyle = COLORS.ground;
-            ctx.fillRect(0, canvas.height - GROUND_HEIGHT, canvas.width, 2);
+            ctx.fillText('OLD FASHION', canvas.width / 2, 80);
+            ctx.fillText('GAMES', canvas.width / 2, 110);
 
             const dinoX = canvas.width / 2 - 20;
-            const dinoY = canvas.height / 2 - 80;
-            drawDinoSprite(dinoX, dinoY);
+            drawDinoSprite(dinoX, 160);
 
             const menuItems = ['DINO RUN', 'FLAPPY', 'LEADERBOARD'];
-            const menuY = [355, 410, 465];
+            const menuY = [280, 335, 390];
             ctx.font = '14px "Press Start 2P", monospace';
 
             // Detect mouse hover
@@ -320,9 +316,12 @@
                 ctx.fillText(label, canvas.width / 2, menuY[i]);
             });
 
+            ctx.fillStyle = COLORS.ground;
+            ctx.fillRect(0, canvas.height - GROUND_HEIGHT, canvas.width, 2);
+
             ctx.font = '9px "Press Start 2P", monospace';
             ctx.fillStyle = '#888';
-            ctx.fillText('Tap to select', canvas.width / 2, 530);
+            ctx.fillText('Tap to select', canvas.width / 2, 460);
 
             ctx.font = '7px "Press Start 2P", monospace';
             ctx.fillStyle = '#666';
@@ -1140,9 +1139,14 @@
             }
 
             if (currentGame === 'menu') {
-                if (y > 330 && y < 380) showDifficultySelect('dino');
-                else if (y > 385 && y < 435) showDifficultySelect('flappy');
-                else if (y > 440 && y < 490) showLeaderboard();
+                // Credit link at bottom
+                if (y > canvas.height - 25) {
+                    window.open('https://0xj4an.xyz', '_blank');
+                    return;
+                }
+                if (y > 255 && y < 305) showDifficultySelect('dino');
+                else if (y > 310 && y < 360) showDifficultySelect('flappy');
+                else if (y > 365 && y < 415) showLeaderboard();
             } else if (currentGame === 'difficulty') {
                 if (y > 315 && y < 365) {
                     applyDifficulty(pendingGameType, 'beginner');
