@@ -29,7 +29,7 @@
             font-family: 'Press Start 2P', monospace;
             overflow: hidden;
             padding: 10px;
-            padding: env(safe-area-inset-top, 10px) env(safe-area-inset-right, 10px) env(safe-area-inset-bottom, 10px) env(safe-area-inset-left, 10px);
+            padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
             -webkit-tap-highlight-color: transparent;
             -webkit-user-select: none;
             user-select: none;
@@ -55,6 +55,7 @@
             height: auto;
             touch-action: none;
             -webkit-touch-callout: none;
+            cursor: pointer;
         }
 
         #loadingScreen {
@@ -170,6 +171,12 @@
         const SWIPE_THRESHOLD = 50;
         let touchStartX = 0;
         let touchStartY = 0;
+
+        // Hover/keyboard selection index (-1 = none)
+        let menuHover = -1;
+        let diffHover = -1;
+        let mouseX = -1;
+        let mouseY = -1;
 
         let currentGame = 'menu';
         let gameState = 'menu';
@@ -287,11 +294,31 @@
             const dinoY = canvas.height / 2 - 80;
             drawDinoSprite(dinoX, dinoY);
 
+            const menuItems = ['DINO RUN', 'FLAPPY', 'LEADERBOARD'];
+            const menuY = [355, 410, 465];
             ctx.font = '14px "Press Start 2P", monospace';
-            ctx.fillStyle = COLORS.text;
-            ctx.fillText('DINO RUN', canvas.width / 2, 355);
-            ctx.fillText('FLAPPY', canvas.width / 2, 410);
-            ctx.fillText('LEADERBOARD', canvas.width / 2, 465);
+
+            // Detect mouse hover
+            if (mouseX >= 0) {
+                for (let i = 0; i < menuY.length; i++) {
+                    if (mouseY > menuY[i] - 25 && mouseY < menuY[i] + 5) {
+                        menuHover = i;
+                        break;
+                    }
+                }
+            }
+
+            menuItems.forEach((label, i) => {
+                const hovered = menuHover === i;
+                if (hovered) {
+                    ctx.fillStyle = COLORS.dino;
+                    ctx.fillRect(40, menuY[i] - 20, 320, 30);
+                    ctx.fillStyle = '#fff';
+                } else {
+                    ctx.fillStyle = COLORS.text;
+                }
+                ctx.fillText(label, canvas.width / 2, menuY[i]);
+            });
 
             ctx.font = '9px "Press Start 2P", monospace';
             ctx.fillStyle = '#888';
@@ -311,11 +338,31 @@
             const dinoX = canvas.width / 2 - 20;
             drawDinoSprite(dinoX, 220);
 
+            const diffItems = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
+            const diffY = [340, 395, 450];
             ctx.font = '14px "Press Start 2P", monospace';
-            ctx.fillStyle = COLORS.text;
-            ctx.fillText('BEGINNER', canvas.width / 2, 340);
-            ctx.fillText('INTERMEDIATE', canvas.width / 2, 395);
-            ctx.fillText('ADVANCED', canvas.width / 2, 450);
+
+            // Detect mouse hover
+            if (mouseX >= 0) {
+                for (let i = 0; i < diffY.length; i++) {
+                    if (mouseY > diffY[i] - 25 && mouseY < diffY[i] + 5) {
+                        diffHover = i;
+                        break;
+                    }
+                }
+            }
+
+            diffItems.forEach((label, i) => {
+                const hovered = diffHover === i;
+                if (hovered) {
+                    ctx.fillStyle = COLORS.dino;
+                    ctx.fillRect(40, diffY[i] - 20, 320, 30);
+                    ctx.fillStyle = '#fff';
+                } else {
+                    ctx.fillStyle = COLORS.text;
+                }
+                ctx.fillText(label, canvas.width / 2, diffY[i]);
+            });
 
             ctx.font = '9px "Press Start 2P", monospace';
             ctx.fillStyle = '#888';
@@ -331,34 +378,37 @@
             ctx.textAlign = 'center';
             ctx.fillText('LEADERBOARD', canvas.width / 2, 30);
 
-            // Difficulty tabs
+            // Difficulty tabs — drawn as clickable buttons
             const diffs = ['beginner', 'intermediate', 'advanced'];
             const diffLabels = ['BEG', 'INT', 'ADV'];
             const diffX = [67, 200, 333];
+            const diffW = 100;
             ctx.font = '9px "Press Start 2P", monospace';
             diffs.forEach((d, i) => {
-                ctx.fillStyle = leaderboardDifficulty === d ? COLORS.dino : '#aaa';
-                ctx.fillText(diffLabels[i], diffX[i], 55);
+                const active = leaderboardDifficulty === d;
+                // Draw button background
+                ctx.fillStyle = active ? COLORS.dino : '#e0e0e0';
+                ctx.fillRect(diffX[i] - diffW / 2, 40, diffW, 28);
+                // Draw label
+                ctx.fillStyle = active ? '#fff' : '#888';
+                ctx.fillText(diffLabels[i], diffX[i], 59);
             });
-            // Underline active difficulty
-            ctx.fillStyle = COLORS.dino;
-            const activeIdx = diffs.indexOf(leaderboardDifficulty);
-            ctx.fillRect(diffX[activeIdx] - 25, 59, 50, 2);
 
-            // Game tabs
+            // Game tabs — drawn as clickable buttons
             ctx.font = '10px "Press Start 2P", monospace';
-            ctx.fillStyle = leaderboardTab === 'dino' ? COLORS.dino : '#aaa';
-            ctx.fillText('DINO RUN', 100, 85);
-            ctx.fillStyle = leaderboardTab === 'flappy' ? COLORS.dino : '#aaa';
-            ctx.fillText('FLAPPY', 300, 85);
-
-            // Underline active game tab
-            ctx.fillStyle = COLORS.dino;
-            if (leaderboardTab === 'dino') {
-                ctx.fillRect(40, 90, 120, 2);
-            } else {
-                ctx.fillRect(240, 90, 120, 2);
-            }
+            const gameTabW = 160;
+            // Dino tab
+            const dinoActive = leaderboardTab === 'dino';
+            ctx.fillStyle = dinoActive ? COLORS.dino : '#e0e0e0';
+            ctx.fillRect(100 - gameTabW / 2, 74, gameTabW, 28);
+            ctx.fillStyle = dinoActive ? '#fff' : '#888';
+            ctx.fillText('DINO RUN', 100, 93);
+            // Flappy tab
+            const flappyActive = leaderboardTab === 'flappy';
+            ctx.fillStyle = flappyActive ? COLORS.dino : '#e0e0e0';
+            ctx.fillRect(300 - gameTabW / 2, 74, gameTabW, 28);
+            ctx.fillStyle = flappyActive ? '#fff' : '#888';
+            ctx.fillText('FLAPPY', 300, 93);
 
             // Headers
             ctx.font = '8px "Press Start 2P", monospace';
@@ -394,7 +444,7 @@
             ctx.font = '7px "Press Start 2P", monospace';
             ctx.fillStyle = '#888';
             ctx.textAlign = 'center';
-            ctx.fillText('Swipe to switch  [X] back', canvas.width / 2, 570);
+            ctx.fillText('Click tabs to switch  [X] back', canvas.width / 2, 570);
         }
 
         function drawBackButton() {
@@ -875,6 +925,7 @@
             pendingGameType = gameType;
             currentGame = 'difficulty';
             gameState = 'difficulty';
+            diffHover = -1;
         }
 
         function startGame(gameType) {
@@ -909,6 +960,7 @@
             gameState = 'menu';
             score = 0;
             nameOverlay.style.display = 'none';
+            menuHover = -1;
         }
 
         function update() {
@@ -950,6 +1002,55 @@
                     } else if (gameState === 'gameover' && scoreSaved) {
                         startGame('dino');
                     }
+                }
+            }
+
+            // Arrow key navigation
+            if (e.code === 'ArrowDown') {
+                e.preventDefault();
+                if (currentGame === 'menu') {
+                    menuHover = menuHover < 2 ? menuHover + 1 : 0;
+                } else if (currentGame === 'difficulty') {
+                    diffHover = diffHover < 2 ? diffHover + 1 : 0;
+                } else if (currentGame === 'leaderboard') {
+                    const diffs = ['beginner', 'intermediate', 'advanced'];
+                    const idx = diffs.indexOf(leaderboardDifficulty);
+                    leaderboardDifficulty = diffs[(idx + 1) % 3];
+                    fetchLeaderboard();
+                }
+            }
+
+            if (e.code === 'ArrowUp') {
+                e.preventDefault();
+                if (currentGame === 'menu') {
+                    menuHover = menuHover > 0 ? menuHover - 1 : 2;
+                } else if (currentGame === 'difficulty') {
+                    diffHover = diffHover > 0 ? diffHover - 1 : 2;
+                } else if (currentGame === 'leaderboard') {
+                    const diffs = ['beginner', 'intermediate', 'advanced'];
+                    const idx = diffs.indexOf(leaderboardDifficulty);
+                    leaderboardDifficulty = diffs[(idx + 2) % 3];
+                    fetchLeaderboard();
+                }
+            }
+
+            if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+                if (currentGame === 'leaderboard') {
+                    e.preventDefault();
+                    leaderboardTab = leaderboardTab === 'dino' ? 'flappy' : 'dino';
+                }
+            }
+
+            // Enter to confirm selection
+            if (e.key === 'Enter') {
+                if (currentGame === 'menu' && menuHover >= 0) {
+                    if (menuHover === 0) showDifficultySelect('dino');
+                    else if (menuHover === 1) showDifficultySelect('flappy');
+                    else if (menuHover === 2) showLeaderboard();
+                } else if (currentGame === 'difficulty' && diffHover >= 0) {
+                    const diffs = ['beginner', 'intermediate', 'advanced'];
+                    applyDifficulty(pendingGameType, diffs[diffHover]);
+                    startGame(pendingGameType);
                 }
             }
 
@@ -1004,14 +1105,16 @@
             }
 
             if (currentGame === 'leaderboard') {
-                if (y > 35 && y < 70) {
-                    if (x > 10 && x < 135) { leaderboardDifficulty = 'beginner'; fetchLeaderboard(); }
-                    else if (x > 135 && x < 265) { leaderboardDifficulty = 'intermediate'; fetchLeaderboard(); }
-                    else if (x > 265 && x < 390) { leaderboardDifficulty = 'advanced'; fetchLeaderboard(); }
+                // Difficulty buttons: y 40-68
+                if (y >= 40 && y <= 68) {
+                    if (x >= 17 && x <= 117) { leaderboardDifficulty = 'beginner'; fetchLeaderboard(); }
+                    else if (x >= 150 && x <= 250) { leaderboardDifficulty = 'intermediate'; fetchLeaderboard(); }
+                    else if (x >= 283 && x <= 383) { leaderboardDifficulty = 'advanced'; fetchLeaderboard(); }
                 }
-                if (y > 70 && y < 105) {
-                    if (x > 10 && x < 200) leaderboardTab = 'dino';
-                    else if (x > 200 && x < 390) leaderboardTab = 'flappy';
+                // Game tabs: y 74-102
+                if (y >= 74 && y <= 102) {
+                    if (x >= 20 && x <= 180) leaderboardTab = 'dino';
+                    else if (x >= 220 && x <= 380) leaderboardTab = 'flappy';
                 }
                 return;
             }
@@ -1068,13 +1171,28 @@
         let isTouchDevice = false;
 
         canvas.addEventListener('click', (e) => {
-            if (isTouchDevice) return; // Skip click if touch already handled
+            if (isTouchDevice) return;
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
             const x = (e.clientX - rect.left) * scaleX;
             const y = (e.clientY - rect.top) * scaleY;
             handleInput(x, y);
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            mouseX = (e.clientX - rect.left) * scaleX;
+            mouseY = (e.clientY - rect.top) * scaleY;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            mouseX = -1;
+            mouseY = -1;
+            menuHover = -1;
+            diffHover = -1;
         });
 
         canvas.addEventListener('touchstart', (e) => {
