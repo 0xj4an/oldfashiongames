@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Old Fashion Games</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
@@ -12,16 +14,31 @@
             box-sizing: border-box;
         }
 
+        html {
+            height: 100%;
+            overflow: hidden;
+        }
+
         body {
             background: #1a1a1a;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
+            min-height: 100%;
+            min-height: 100dvh;
             font-family: 'Press Start 2P', monospace;
             overflow: hidden;
             padding: 10px;
+            padding: env(safe-area-inset-top, 10px) env(safe-area-inset-right, 10px) env(safe-area-inset-bottom, 10px) env(safe-area-inset-left, 10px);
             -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            user-select: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            -webkit-overflow-scrolling: touch;
         }
 
         #gameContainer {
@@ -37,51 +54,92 @@
             width: 100%;
             height: auto;
             touch-action: none;
+            -webkit-touch-callout: none;
+        }
+
+        #loadingScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 0.3s;
+        }
+
+        #loadingScreen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #loadingScreen span {
+            color: #535353;
+            font-family: monospace;
+            font-size: 14px;
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
         }
 
         #nameOverlay {
             display: none;
             position: absolute;
-            top: 50%;
+            top: 35%;
             left: 50%;
             transform: translate(-50%, -50%);
             text-align: center;
             z-index: 10;
+            width: 90%;
+            max-width: 280px;
         }
 
         #nameInput {
             font-family: 'Press Start 2P', monospace;
-            font-size: 12px;
-            padding: 8px 12px;
-            width: 200px;
+            font-size: 16px;
+            padding: 12px 16px;
+            width: 100%;
             border: 2px solid #535353;
             border-radius: 4px;
             text-align: center;
             outline: none;
+            -webkit-user-select: auto;
+            user-select: auto;
+            background: #fff;
         }
 
         #saveBtn, #skipBtn {
             font-family: 'Press Start 2P', monospace;
-            font-size: 10px;
-            padding: 8px 16px;
-            margin: 8px 4px 0;
+            font-size: 12px;
+            padding: 12px 20px;
+            margin: 10px 4px 0;
             cursor: pointer;
             border: 2px solid #535353;
             border-radius: 4px;
             background: #fff;
+            min-height: 44px;
+            min-width: 80px;
         }
 
-        #saveBtn:hover, #skipBtn:hover {
+        #saveBtn:hover, #skipBtn:hover,
+        #saveBtn:active, #skipBtn:active {
             background: #535353;
             color: #fff;
         }
     </style>
 </head>
 <body>
+    <div id="loadingScreen"><span>LOADING...</span></div>
     <div id="gameContainer">
         <canvas id="game" width="400" height="600"></canvas>
         <div id="nameOverlay">
-            <input id="nameInput" type="text" maxlength="15" placeholder="Your name">
+            <input id="nameInput" type="text" maxlength="15" placeholder="Your name" autocomplete="off" autocapitalize="off" autocorrect="off">
             <br>
             <button id="saveBtn">SAVE</button>
             <button id="skipBtn">SKIP</button>
@@ -229,15 +287,15 @@
             const dinoY = canvas.height / 2 - 80;
             drawDinoSprite(dinoX, dinoY);
 
-            ctx.font = '12px "Press Start 2P", monospace';
+            ctx.font = '14px "Press Start 2P", monospace';
             ctx.fillStyle = COLORS.text;
-            ctx.fillText('1. DINO RUN', canvas.width / 2, 360);
-            ctx.fillText('2. FLAPPY', canvas.width / 2, 400);
-            ctx.fillText('3. LEADERBOARD', canvas.width / 2, 440);
+            ctx.fillText('DINO RUN', canvas.width / 2, 355);
+            ctx.fillText('FLAPPY', canvas.width / 2, 410);
+            ctx.fillText('LEADERBOARD', canvas.width / 2, 465);
 
-            ctx.font = '10px "Press Start 2P", monospace';
+            ctx.font = '9px "Press Start 2P", monospace';
             ctx.fillStyle = '#888';
-            ctx.fillText('Press 1, 2 or 3', canvas.width / 2, 520);
+            ctx.fillText('Tap to select', canvas.width / 2, 530);
         }
 
         function drawDifficultySelect() {
@@ -253,11 +311,11 @@
             const dinoX = canvas.width / 2 - 20;
             drawDinoSprite(dinoX, 220);
 
-            ctx.font = '12px "Press Start 2P", monospace';
+            ctx.font = '14px "Press Start 2P", monospace';
             ctx.fillStyle = COLORS.text;
-            ctx.fillText('1. BEGINNER', canvas.width / 2, 340);
-            ctx.fillText('2. INTERMEDIATE', canvas.width / 2, 380);
-            ctx.fillText('3. ADVANCED', canvas.width / 2, 420);
+            ctx.fillText('BEGINNER', canvas.width / 2, 340);
+            ctx.fillText('INTERMEDIATE', canvas.width / 2, 395);
+            ctx.fillText('ADVANCED', canvas.width / 2, 450);
 
             ctx.font = '9px "Press Start 2P", monospace';
             ctx.fillStyle = '#888';
@@ -447,11 +505,11 @@
                 ctx.fillStyle = '#7f7';
                 ctx.fillText('Score Saved!', canvas.width / 2, canvas.height / 2 + 45);
                 ctx.fillStyle = '#fff';
-                ctx.font = '11px "Press Start 2P", monospace';
-                ctx.fillText('Tap to Restart', canvas.width / 2, canvas.height / 2 + 85);
-                ctx.font = '9px "Press Start 2P", monospace';
-                ctx.fillText('[Change Level]', canvas.width / 2, canvas.height / 2 + 110);
-                ctx.fillText('[Menu]', canvas.width / 2, canvas.height / 2 + 135);
+                ctx.font = '12px "Press Start 2P", monospace';
+                ctx.fillText('TAP TO RESTART', canvas.width / 2, canvas.height / 2 + 90);
+                ctx.font = '10px "Press Start 2P", monospace';
+                ctx.fillText('[Change Level]', canvas.width / 2, canvas.height / 2 + 130);
+                ctx.fillText('[Menu]', canvas.width / 2, canvas.height / 2 + 170);
             }
         }
 
@@ -531,11 +589,11 @@
                 ctx.fillStyle = '#7f7';
                 ctx.fillText('Score Saved!', canvas.width / 2, canvas.height / 2 + 45);
                 ctx.fillStyle = '#fff';
-                ctx.font = '11px "Press Start 2P", monospace';
-                ctx.fillText('Tap to Restart', canvas.width / 2, canvas.height / 2 + 85);
-                ctx.font = '9px "Press Start 2P", monospace';
-                ctx.fillText('[Change Level]', canvas.width / 2, canvas.height / 2 + 110);
-                ctx.fillText('[Menu]', canvas.width / 2, canvas.height / 2 + 135);
+                ctx.font = '12px "Press Start 2P", monospace';
+                ctx.fillText('TAP TO RESTART', canvas.width / 2, canvas.height / 2 + 90);
+                ctx.font = '10px "Press Start 2P", monospace';
+                ctx.fillText('[Change Level]', canvas.width / 2, canvas.height / 2 + 130);
+                ctx.fillText('[Menu]', canvas.width / 2, canvas.height / 2 + 170);
             }
         }
 
@@ -946,30 +1004,30 @@
             }
 
             if (currentGame === 'leaderboard') {
-                if (y > 40 && y < 65) {
-                    if (x > 20 && x < 120) { leaderboardDifficulty = 'beginner'; fetchLeaderboard(); }
-                    else if (x > 150 && x < 250) { leaderboardDifficulty = 'intermediate'; fetchLeaderboard(); }
-                    else if (x > 280 && x < 380) { leaderboardDifficulty = 'advanced'; fetchLeaderboard(); }
+                if (y > 35 && y < 70) {
+                    if (x > 10 && x < 135) { leaderboardDifficulty = 'beginner'; fetchLeaderboard(); }
+                    else if (x > 135 && x < 265) { leaderboardDifficulty = 'intermediate'; fetchLeaderboard(); }
+                    else if (x > 265 && x < 390) { leaderboardDifficulty = 'advanced'; fetchLeaderboard(); }
                 }
-                if (y > 70 && y < 95) {
-                    if (x > 30 && x < 170) leaderboardTab = 'dino';
-                    else if (x > 230 && x < 370) leaderboardTab = 'flappy';
+                if (y > 70 && y < 105) {
+                    if (x > 10 && x < 200) leaderboardTab = 'dino';
+                    else if (x > 200 && x < 390) leaderboardTab = 'flappy';
                 }
                 return;
             }
 
             if (currentGame === 'menu') {
-                if (y > 340 && y < 370) showDifficultySelect('dino');
-                else if (y > 380 && y < 410) showDifficultySelect('flappy');
-                else if (y > 420 && y < 450) showLeaderboard();
+                if (y > 330 && y < 380) showDifficultySelect('dino');
+                else if (y > 385 && y < 435) showDifficultySelect('flappy');
+                else if (y > 440 && y < 490) showLeaderboard();
             } else if (currentGame === 'difficulty') {
-                if (y > 320 && y < 350) {
+                if (y > 315 && y < 365) {
                     applyDifficulty(pendingGameType, 'beginner');
                     startGame(pendingGameType);
-                } else if (y > 360 && y < 390) {
+                } else if (y > 370 && y < 420) {
                     applyDifficulty(pendingGameType, 'intermediate');
                     startGame(pendingGameType);
-                } else if (y > 400 && y < 430) {
+                } else if (y > 425 && y < 475) {
                     applyDifficulty(pendingGameType, 'advanced');
                     startGame(pendingGameType);
                 }
@@ -979,9 +1037,9 @@
                 } else if (gameState === 'playing') {
                     flappyGame.dino.velocity = flappyGame.JUMP_VELOCITY;
                 } else if (gameState === 'gameover' && scoreSaved) {
-                    if (y > 397 && y < 423) {
+                    if (y > 410 && y < 455) {
                         showDifficultySelect('flappy');
-                    } else if (y > 423 && y < 448) {
+                    } else if (y > 455 && y < 495) {
                         goToMenu();
                     } else {
                         startGame('flappy');
@@ -995,9 +1053,9 @@
                         dinoGame.dino.velocity = dinoGame.JUMP_VELOCITY;
                     }
                 } else if (gameState === 'gameover' && scoreSaved) {
-                    if (y > 397 && y < 423) {
+                    if (y > 410 && y < 455) {
                         showDifficultySelect('dino');
-                    } else if (y > 423 && y < 448) {
+                    } else if (y > 455 && y < 495) {
                         goToMenu();
                     } else {
                         startGame('dino');
@@ -1006,7 +1064,11 @@
             }
         }
 
+        // Use touch events on touch devices, click on desktop — prevent double-fire
+        let isTouchDevice = false;
+
         canvas.addEventListener('click', (e) => {
+            if (isTouchDevice) return; // Skip click if touch already handled
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
@@ -1017,10 +1079,11 @@
 
         canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
+            isTouchDevice = true;
             const touch = e.touches[0];
             touchStartX = touch.clientX;
             touchStartY = touch.clientY;
-        });
+        }, { passive: false });
 
         canvas.addEventListener('touchend', (e) => {
             e.preventDefault();
@@ -1031,12 +1094,10 @@
             // Swipe detection for leaderboard
             if (currentGame === 'leaderboard') {
                 if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
-                    // Horizontal swipe: switch game tab
                     leaderboardTab = leaderboardTab === 'dino' ? 'flappy' : 'dino';
                     return;
                 }
                 if (Math.abs(dy) > SWIPE_THRESHOLD && Math.abs(dy) > Math.abs(dx)) {
-                    // Vertical swipe: cycle difficulty
                     const diffs = ['beginner', 'intermediate', 'advanced'];
                     const i = diffs.indexOf(leaderboardDifficulty);
                     if (dy < 0) {
@@ -1056,7 +1117,28 @@
             const x = (touchStartX - rect.left) * scaleX;
             const y = (touchStartY - rect.top) * scaleY;
             handleInput(x, y);
-        });
+        }, { passive: false });
+
+        // Prevent iOS bounce/scroll on the page
+        document.addEventListener('touchmove', (e) => {
+            if (e.target === canvas) e.preventDefault();
+        }, { passive: false });
+
+        // Hide loading screen once font is ready
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(() => {
+                const ls = document.getElementById('loadingScreen');
+                ls.classList.add('hidden');
+                setTimeout(() => ls.remove(), 400);
+            });
+        } else {
+            // Fallback: hide after 2s if Font Loading API not supported
+            setTimeout(() => {
+                const ls = document.getElementById('loadingScreen');
+                ls.classList.add('hidden');
+                setTimeout(() => ls.remove(), 400);
+            }, 2000);
+        }
 
         gameLoop();
     </script>
