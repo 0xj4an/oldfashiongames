@@ -1103,8 +1103,10 @@
                 showDifficultySelect(currentGame);
             }
 
-            if (e.key === 'm' || e.key === 'M') {
-                goToMenu();
+            if (e.key === 'm' || e.key === 'M' || e.key === 'Escape') {
+                if (currentGame !== 'menu') {
+                    goToMenu();
+                }
             }
         });
 
