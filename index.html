@@ -367,9 +367,10 @@
                 ctx.fillText(label, canvas.width / 2, diffY[i]);
             });
 
-            ctx.font = '9px "Press Start 2P", monospace';
+            ctx.font = '7px "Press Start 2P", monospace';
             ctx.fillStyle = '#888';
-            ctx.fillText('Tap [X] to go back', canvas.width / 2, 520);
+            ctx.fillText('Use arrows or tap to select', canvas.width / 2, 510);
+            ctx.fillText('ESC or [X] to go back', canvas.width / 2, 530);
         }
 
         function drawLeaderboard() {
@@ -447,7 +448,7 @@
             ctx.font = '7px "Press Start 2P", monospace';
             ctx.fillStyle = '#888';
             ctx.textAlign = 'center';
-            ctx.fillText('Click tabs to switch  [X] back', canvas.width / 2, 570);
+            ctx.fillText('Arrows to navigate  ESC to go back', canvas.width / 2, 570);
         }
 
         function drawBackButton() {
@@ -559,10 +560,11 @@
                 ctx.fillText('Score Saved!', canvas.width / 2, canvas.height / 2 + 45);
                 ctx.fillStyle = '#fff';
                 ctx.font = '12px "Press Start 2P", monospace';
-                ctx.fillText('TAP TO RESTART', canvas.width / 2, canvas.height / 2 + 90);
-                ctx.font = '10px "Press Start 2P", monospace';
-                ctx.fillText('[Change Level]', canvas.width / 2, canvas.height / 2 + 130);
-                ctx.fillText('[Menu]', canvas.width / 2, canvas.height / 2 + 170);
+                ctx.fillText('TAP TO RESTART', canvas.width / 2, canvas.height / 2 + 80);
+                ctx.font = '8px "Press Start 2P", monospace';
+                ctx.fillStyle = '#ccc';
+                ctx.fillText('D = Change Level', canvas.width / 2, canvas.height / 2 + 115);
+                ctx.fillText('ESC = Menu', canvas.width / 2, canvas.height / 2 + 140);
             }
         }
 
@@ -643,10 +645,11 @@
                 ctx.fillText('Score Saved!', canvas.width / 2, canvas.height / 2 + 45);
                 ctx.fillStyle = '#fff';
                 ctx.font = '12px "Press Start 2P", monospace';
-                ctx.fillText('TAP TO RESTART', canvas.width / 2, canvas.height / 2 + 90);
-                ctx.font = '10px "Press Start 2P", monospace';
-                ctx.fillText('[Change Level]', canvas.width / 2, canvas.height / 2 + 130);
-                ctx.fillText('[Menu]', canvas.width / 2, canvas.height / 2 + 170);
+                ctx.fillText('TAP TO RESTART', canvas.width / 2, canvas.height / 2 + 80);
+                ctx.font = '8px "Press Start 2P", monospace';
+                ctx.fillStyle = '#ccc';
+                ctx.fillText('D = Change Level', canvas.width / 2, canvas.height / 2 + 115);
+                ctx.fillText('ESC = Menu', canvas.width / 2, canvas.height / 2 + 140);
             }
         }
 
