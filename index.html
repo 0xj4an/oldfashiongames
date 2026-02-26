@@ -905,8 +905,18 @@
                     fetch('/api/scores/dino/' + d),
                     fetch('/api/scores/flappy/' + d)
                 ]);
-                leaderboardData.dino = await dinoRes.json();
-                leaderboardData.flappy = await flappyRes.json();
+                if (dinoRes.ok) {
+                    const data = await dinoRes.json();
+                    leaderboardData.dino = Array.isArray(data) ? data : [];
+                } else {
+                    leaderboardData.dino = [];
+                }
+                if (flappyRes.ok) {
+                    const data = await flappyRes.json();
+                    leaderboardData.flappy = Array.isArray(data) ? data : [];
+                } else {
+                    leaderboardData.flappy = [];
+                }
             } catch (e) {
                 console.error('Failed to fetch leaderboard:', e);
                 leaderboardData = { dino: [], flappy: [] };
@@ -972,8 +982,12 @@
         }
 
         function gameLoop() {
-            update();
-            draw();
+            try {
+                update();
+                draw();
+            } catch (e) {
+                console.error('Game loop error:', e);
+            }
             requestAnimationFrame(gameLoop);
         }
 
